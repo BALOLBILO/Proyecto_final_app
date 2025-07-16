@@ -1,30 +1,42 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:proyecto_final_ok/presentation/firestore_provider.dart';
-import 'package:proyecto_final_ok/presentation/medicion_provider.dart';
+import 'package:go_router/go_router.dart';
 
-class InicioScreen extends ConsumerWidget {
+class InicioScreen extends StatelessWidget {
   const InicioScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final medicionesAsync = ref.watch(medicionesFormateadasProvider);
-
-    return medicionesAsync.when(
-      data: (mediciones) {
-        return ListView.builder(
-          itemCount: mediciones.length,
-          itemBuilder: (context, index) {
-            final m = mediciones[index];
-            return ListTile(
-              title: Text("CO2: ${m['co2']} | PM2.5: ${m['pm25']}"),
-              subtitle: Text("Fecha: ${m['fecha']}"),
-            );
-          },
-        );
-      },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (err, stack) => Center(child: Text("Error: $err")),
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('ECORUTA')),
+      body: ListView(
+        children: [
+          ListTile(
+            leading: const Icon(Icons.analytics),
+            title: const Text('Mediciones'),
+            onTap: () {
+              context.push('/mediciones');
+            },
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.map),
+            title: const Text('Mapa'),
+            onTap: () {
+              // Acción o navegación
+              print('Mapa');
+            },
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.place),
+            title: const Text('Lugar'),
+            onTap: () {
+              // Acción o navegación
+              context.push('/lugar');
+            },
+          ),
+        ],
+      ),
     );
   }
 }
