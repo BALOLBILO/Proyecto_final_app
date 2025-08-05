@@ -50,10 +50,12 @@ class CoordenadasScreen extends ConsumerWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               SizedBox(height: 4),
-                              Text("PM2.5: ${med.pm25}, PM10: ${med.pm10}"),
-                              Text(
-                                "CO2: ${med.co2}, TVOC: ${med.tvoc}, NH3: ${med.nh3}, CO: ${med.co}",
-                              ),
+                              Text("PM2.5: ${med.pm25}"),
+                              Text("PM10: ${med.pm10}"),
+                              Text("TVOC: ${med.tvoc}"),
+                              Text("NH3: ${med.nh3}"),
+                              Text("CO: ${med.co}"),
+                              Text("CO2: ${med.co2}"),
                             ],
                           ),
                         ),

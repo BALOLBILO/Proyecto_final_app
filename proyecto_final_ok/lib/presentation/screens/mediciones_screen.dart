@@ -2,12 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:proyecto_final_ok/presentation/descripcion_provider.dart';
+import 'package:proyecto_final_ok/presentation/mediciones_provider.dart';
 
 class MedicionesScreen extends ConsumerWidget {
   const MedicionesScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final gasFirestoreMap = {
+      'CO₂': 'co2',
+      'CO': 'co',
+      'NH₃': 'nh3',
+      'TVOC': 'tvoc',
+      'PM2.5': 'pm25',
+      'PM10': 'pm10',
+    };
     final descripcionValue = ref.watch(descripcion);
 
     String descripcion1 = '';
@@ -111,9 +120,18 @@ class MedicionesScreen extends ConsumerWidget {
               context,
             ).showSnackBar(const SnackBar(content: Text('Selecciona un gas')));
           } else {
-            context.push('/lugar');
+            final firestoreKey = gasFirestoreMap[descripcionValue];
+            if (firestoreKey != null) {
+              ref.read(gasSeleccionado.notifier).state = firestoreKey;
+              context.push('/medicionesEspecifica');
+            } else {
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(const SnackBar(content: Text('Gas desconocido')));
+            }
           }
         },
+
         child: const Icon(Icons.arrow_forward),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
