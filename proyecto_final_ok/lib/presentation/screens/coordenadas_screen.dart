@@ -5,6 +5,36 @@ import 'package:proyecto_final_ok/presentation/firestore_provider.dart';
 
 class CoordenadasScreen extends ConsumerWidget {
   const CoordenadasScreen({super.key});
+  String clasificar(String gas, double valor) {
+    switch (gas) {
+      case 'pm25':
+        if (valor < 15) return 'Bajo';
+        if (valor < 35) return 'Mediano';
+        return 'Alto';
+      case 'pm10':
+        if (valor < 30) return 'Bajo';
+        if (valor < 50) return 'Mediano';
+        return 'Alto';
+      case 'tvoc':
+        if (valor < 150) return 'Bajo';
+        if (valor < 300) return 'Mediano';
+        return 'Alto';
+      case 'nh3':
+        if (valor < 20) return 'Bajo';
+        if (valor < 40) return 'Mediano';
+        return 'Alto';
+      case 'co':
+        if (valor < 5) return 'Bajo';
+        if (valor < 10) return 'Mediano';
+        return 'Alto';
+      case 'co2':
+        if (valor < 800) return 'Bajo';
+        if (valor < 1500) return 'Mediano';
+        return 'Alto';
+      default:
+        return '';
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -50,12 +80,24 @@ class CoordenadasScreen extends ConsumerWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               SizedBox(height: 4),
-                              Text("PM2.5: ${med.pm25}"),
-                              Text("PM10: ${med.pm10}"),
-                              Text("TVOC: ${med.tvoc}"),
-                              Text("NH3: ${med.nh3}"),
-                              Text("CO: ${med.co}"),
-                              Text("CO2: ${med.co2}"),
+                              Text(
+                                "PM2.5: ${med.pm25} (${clasificar('pm25', med.pm25)})",
+                              ),
+                              Text(
+                                "PM10: ${med.pm10} (${clasificar('pm10', med.pm10)})",
+                              ),
+                              Text(
+                                "TVOC: ${med.tvoc} (${clasificar('tvoc', med.tvoc)})",
+                              ),
+                              Text(
+                                "NH3: ${med.nh3} (${clasificar('nh3', med.nh3)})",
+                              ),
+                              Text(
+                                "CO: ${med.co} (${clasificar('co', med.co)})",
+                              ),
+                              Text(
+                                "CO2: ${med.co2} (${clasificar('co2', med.co2)})",
+                              ),
                             ],
                           ),
                         ),
