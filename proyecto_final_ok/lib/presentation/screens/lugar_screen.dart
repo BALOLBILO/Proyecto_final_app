@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 import 'package:proyecto_final_ok/presentation/coordenadas_provider.dart';
+import 'package:proyecto_final_ok/presentation/lugar_provider.dart';
 
 class LugarScreen extends ConsumerStatefulWidget {
   const LugarScreen({super.key});
@@ -16,7 +17,6 @@ class LugarScreen extends ConsumerStatefulWidget {
 class _LugarScreenState extends ConsumerState<LugarScreen> {
   final TextEditingController controller = TextEditingController();
   List<dynamic> lugares = [];
-
   void buscarLugares(String query) async {
     if (query.isEmpty) {
       setState(() => lugares = []);
@@ -49,6 +49,8 @@ class _LugarScreenState extends ConsumerState<LugarScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final lugarA = ref.watch(lugarPantalla);
+
     final lat = ref.watch(latitud);
     final lon = ref.watch(longitud);
 
@@ -82,8 +84,11 @@ class _LugarScreenState extends ConsumerState<LugarScreen> {
                     onTap: () {
                       ref.read(latitud.notifier).state = latFound;
                       ref.read(longitud.notifier).state = lonFound;
-                      context.push('/coordenada');
-
+                      if (lugarA == 1) {
+                        context.push('/coordenada');
+                      } else if (lugarA == 2) {
+                        context.push('/medicionPersonalizada');
+                      }
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(

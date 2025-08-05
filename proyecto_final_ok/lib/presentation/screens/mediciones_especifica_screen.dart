@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:proyecto_final_ok/presentation/mediciones_provider.dart';
 import 'package:proyecto_final_ok/presentation/coordenadas_provider.dart';
+import 'package:proyecto_final_ok/presentation/lugar_provider.dart';
 
 class MedicionesEspecificasScreen extends ConsumerWidget {
   const MedicionesEspecificasScreen({super.key});
@@ -52,6 +53,14 @@ class MedicionesEspecificasScreen extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          ref.read(lugarPantalla.notifier).state = 2;
+
+          context.push('/lugar');
+        },
+        child: const Icon(Icons.search),
       ),
     );
   }
