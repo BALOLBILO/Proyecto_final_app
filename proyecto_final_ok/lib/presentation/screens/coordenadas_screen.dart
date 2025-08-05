@@ -54,8 +54,6 @@ class CoordenadasScreen extends ConsumerWidget {
                               Text(
                                 "CO2: ${med.co2}, TVOC: ${med.tvoc}, NH3: ${med.nh3}, CO: ${med.co}",
                               ),
-                              Text("Lat: ${med.latitud}, Lon: ${med.longitud}"),
-                              Text("Timestamp: ${med.timestamp}"),
                             ],
                           ),
                         ),
