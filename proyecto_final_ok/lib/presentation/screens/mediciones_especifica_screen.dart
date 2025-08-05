@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:proyecto_final_ok/presentation/mediciones_provider.dart';
+import 'package:proyecto_final_ok/presentation/coordenadas_provider.dart';
 
 class MedicionesEspecificasScreen extends ConsumerWidget {
   const MedicionesEspecificasScreen({super.key});
@@ -34,6 +36,13 @@ class MedicionesEspecificasScreen extends ConsumerWidget {
                       trailing: Text(
                         "(${m.latitud.toStringAsFixed(4)}, ${m.longitud.toStringAsFixed(4)})",
                       ),
+                      onTap: () {
+                        final lat = m.latitud;
+                        final lon = m.longitud;
+                        ref.read(latitud.notifier).state = lat;
+                        ref.read(longitud.notifier).state = lon;
+                        context.push('/coordenada');
+                      },
                     );
                   },
                 );
