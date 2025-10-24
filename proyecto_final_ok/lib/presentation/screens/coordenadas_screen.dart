@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geocoding/geocoding.dart'; // 👈 para convertir coordenadas a dirección
 import 'package:proyecto_final_ok/presentation/coordenadas_provider.dart';
 import 'package:proyecto_final_ok/presentation/firestore_provider.dart';
 
 class CoordenadasScreen extends ConsumerWidget {
   const CoordenadasScreen({super.key});
+
   String clasificar(String gas, double valor) {
     switch (gas) {
       case 'pm25':
@@ -36,6 +38,25 @@ class CoordenadasScreen extends ConsumerWidget {
     }
   }
 
+  Future<String> obtenerDireccion(double lat, double lon) async {
+    try {
+      final placemarks = await placemarkFromCoordinates(lat, lon);
+      if (placemarks.isNotEmpty) {
+        final p = placemarks.first;
+        return [
+          p.street,
+          p.locality,
+          p.subAdministrativeArea,
+          p.administrativeArea,
+          p.country,
+        ].where((e) => e != null && e.isNotEmpty).join(', ');
+      }
+      return 'Dirección no encontrada';
+    } catch (e) {
+      return 'Error obteniendo dirección';
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final medicionesAsync = ref.watch(medicionesPorCoordenadaProvider);
@@ -43,30 +64,51 @@ class CoordenadasScreen extends ConsumerWidget {
     final lon = ref.watch(longitud);
 
     return Scaffold(
-      appBar: AppBar(title: Text('Mediciones en lat/lon')),
+      appBar: AppBar(title: const Text('Mediciones en ubicación seleccionada')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              "Coordenadas seleccionadas:",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            FutureBuilder<String>(
+              future: obtenerDireccion(lat, lon),
+              builder: (context, snapshot) {
+                final direccion = snapshot.data ?? 'Cargando dirección...';
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "📍 Lugar:",
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(direccion, style: const TextStyle(fontSize: 15)),
+                    const SizedBox(height: 8),
+                    Text(
+                      "🧭 Coordenadas: ($lat, $lon)",
+                      style: const TextStyle(color: Colors.black54),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                );
+              },
             ),
-            Text("Lat: $lat, Lon: $lon"),
-            SizedBox(height: 20),
             Expanded(
               child: medicionesAsync.when(
                 data: (mediciones) {
                   if (mediciones.isEmpty) {
-                    return Text("No hay mediciones para estas coordenadas.");
+                    return const Center(
+                      child: Text("No hay mediciones para esta ubicación."),
+                    );
                   }
                   return ListView.builder(
                     itemCount: mediciones.length,
                     itemBuilder: (context, index) {
                       final med = mediciones[index];
                       return Card(
-                        margin: EdgeInsets.symmetric(
+                        margin: const EdgeInsets.symmetric(
                           vertical: 8,
                           horizontal: 4,
                         ),
@@ -74,12 +116,12 @@ class CoordenadasScreen extends ConsumerWidget {
                         child: ListTile(
                           title: Text(
                             "Fecha: ${med.fechaHora}",
-                            style: TextStyle(fontWeight: FontWeight.bold),
+                            style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              SizedBox(height: 4),
+                              const SizedBox(height: 4),
                               Text(
                                 "PM2.5: ${med.pm25} (${clasificar('pm25', med.pm25)})",
                               ),
@@ -105,8 +147,8 @@ class CoordenadasScreen extends ConsumerWidget {
                     },
                   );
                 },
-                loading: () => Center(child: CircularProgressIndicator()),
-                error: (err, stack) => Center(child: Text('Error: $err')),
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (err, _) => Center(child: Text('Error: $err')),
               ),
             ),
           ],

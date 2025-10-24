@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geocoding/geocoding.dart'; // 👈 necesario para convertir lat/lon a dirección
 import 'package:proyecto_final_ok/presentation/coordenadas_provider.dart';
 import 'package:proyecto_final_ok/presentation/firestore_provider.dart';
+import 'package:proyecto_final_ok/presentation/mediciones_provider.dart';
 
 class MedicionPersonalizadaScreen extends ConsumerWidget {
   const MedicionPersonalizadaScreen({super.key});
+
   String clasificar(String gas, double valor) {
     switch (gas) {
       case 'pm25':
@@ -36,77 +39,129 @@ class MedicionPersonalizadaScreen extends ConsumerWidget {
     }
   }
 
+  double _valorDe(dynamic med, String gas) {
+    switch (gas) {
+      case 'pm25':
+        return (med.pm25 ?? 0).toDouble();
+      case 'pm10':
+        return (med.pm10 ?? 0).toDouble();
+      case 'tvoc':
+        return (med.tvoc ?? 0).toDouble();
+      case 'nh3':
+        return (med.nh3 ?? 0).toDouble();
+      case 'co':
+        return (med.co ?? 0).toDouble();
+      case 'co2':
+        return (med.co2 ?? 0).toDouble();
+      default:
+        return 0.0;
+    }
+  }
+
+  String _formatearFecha(dynamic fechaHora) {
+    if (fechaHora is DateTime) {
+      return '${fechaHora.toLocal()}';
+    }
+    return '$fechaHora';
+  }
+
+  Future<String> obtenerDireccion(double lat, double lon) async {
+    try {
+      final placemarks = await placemarkFromCoordinates(lat, lon);
+      if (placemarks.isNotEmpty) {
+        final p = placemarks.first;
+        return [
+          p.street,
+          p.locality,
+          p.subAdministrativeArea,
+          p.administrativeArea,
+          p.country,
+        ].where((e) => e != null && e.isNotEmpty).join(', ');
+      }
+      return 'Dirección no encontrada';
+    } catch (e) {
+      return 'Error obteniendo dirección';
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final medicionesAsync = ref.watch(medicionesPorCoordenadaProvider);
     final lat = ref.watch(latitud);
     final lon = ref.watch(longitud);
+    final gas = ref.watch(gasSeleccionado); // ej: 'pm25', 'co2', etc.
 
     return Scaffold(
-      appBar: AppBar(title: Text('Personalizado')),
+      appBar: AppBar(title: const Text('Medición personalizada')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              "Coordenadas seleccionadas:",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            FutureBuilder<String>(
+              future: obtenerDireccion(lat, lon),
+              builder: (context, snapshot) {
+                final direccion = snapshot.data ?? 'Cargando dirección...';
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "📍 Lugar:",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(direccion, style: const TextStyle(fontSize: 15)),
+                    const SizedBox(height: 8),
+                    Text(
+                      "🧭 Coordenadas: ($lat, $lon)",
+                      style: const TextStyle(color: Colors.black54),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                );
+              },
             ),
-            Text("Lat: $lat, Lon: $lon"),
-            SizedBox(height: 20),
             Expanded(
               child: medicionesAsync.when(
                 data: (mediciones) {
                   if (mediciones.isEmpty) {
-                    return Text("No hay mediciones para estas coordenadas.");
+                    return const Center(
+                      child: Text("No hay mediciones para esta ubicación."),
+                    );
                   }
                   return ListView.builder(
                     itemCount: mediciones.length,
                     itemBuilder: (context, index) {
                       final med = mediciones[index];
+                      final valor = _valorDe(med, gas);
+                      final nivel = clasificar(gas, valor);
+
                       return Card(
-                        margin: EdgeInsets.symmetric(
+                        margin: const EdgeInsets.symmetric(
                           vertical: 8,
                           horizontal: 4,
                         ),
                         elevation: 2,
                         child: ListTile(
                           title: Text(
-                            "Fecha: ${med.fechaHora}",
-                            style: TextStyle(fontWeight: FontWeight.bold),
+                            "Fecha: ${_formatearFecha(med.fechaHora)}",
+                            style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              SizedBox(height: 4),
-                              Text(
-                                "PM2.5: ${med.pm25} (${clasificar('pm25', med.pm25)})",
-                              ),
-                              Text(
-                                "PM10: ${med.pm10} (${clasificar('pm10', med.pm10)})",
-                              ),
-                              Text(
-                                "TVOC: ${med.tvoc} (${clasificar('tvoc', med.tvoc)})",
-                              ),
-                              Text(
-                                "NH3: ${med.nh3} (${clasificar('nh3', med.nh3)})",
-                              ),
-                              Text(
-                                "CO: ${med.co} (${clasificar('co', med.co)})",
-                              ),
-                              Text(
-                                "CO2: ${med.co2} (${clasificar('co2', med.co2)})",
-                              ),
-                            ],
+                          subtitle: Padding(
+                            padding: const EdgeInsets.only(top: 4.0),
+                            child: Text(
+                              "$gas: ${valor.toStringAsFixed(2)} ($nivel)",
+                            ),
                           ),
                         ),
                       );
                     },
                   );
                 },
-                loading: () => Center(child: CircularProgressIndicator()),
-                error: (err, stack) => Center(child: Text('Error: $err')),
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (err, _) => Center(child: Text('Error: $err')),
               ),
             ),
           ],
