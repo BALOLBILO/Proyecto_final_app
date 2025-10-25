@@ -1,5 +1,6 @@
 import 'package:proyecto_final_ok/presentation/screens/Inicio_screen.dart';
 import 'package:proyecto_final_ok/presentation/screens/datos_recientes_screen.dart';
+import 'package:proyecto_final_ok/presentation/screens/grafico_screen.dart';
 import 'package:proyecto_final_ok/presentation/screens/lugar_screen.dart';
 import 'package:go_router/go_router.dart';
 import 'package:proyecto_final_ok/presentation/screens/coordenadas_screen.dart';
@@ -38,6 +39,10 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/mapaEspecifico',
       builder: (context, state) => const MapaEspecificoScreen(),
+    ),
+    GoRoute(
+      path: '/grafico',
+      builder: (context, state) => const GraficoGasScreen(),
     ),
   ],
 );

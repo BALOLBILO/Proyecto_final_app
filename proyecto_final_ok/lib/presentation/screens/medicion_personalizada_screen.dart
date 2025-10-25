@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geocoding/geocoding.dart'; // 👈 necesario para convertir lat/lon a dirección
+import 'package:go_router/go_router.dart';
 import 'package:proyecto_final_ok/presentation/coordenadas_provider.dart';
 import 'package:proyecto_final_ok/presentation/firestore_provider.dart';
 import 'package:proyecto_final_ok/presentation/mediciones_provider.dart';
@@ -93,6 +94,14 @@ class MedicionPersonalizadaScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Medición personalizada')),
+      floatingActionButton: FloatingActionButton.extended(
+        icon: const Icon(Icons.show_chart),
+        label: const Text('Grafico'),
+        onPressed: () {
+          context.push('/grafico');
+        },
+      ),
+
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
