@@ -110,7 +110,9 @@ class MedicionesEspecificasScreen extends ConsumerWidget {
                         onTap: () {
                           ref.read(latitud.notifier).state = lat;
                           ref.read(longitud.notifier).state = lon;
-                          context.push('/coordenada');
+                          context.push(
+                            '/medicionPersonalizada',
+                          ); // 👈 antes iba a '/coordenada'
                         },
                       ),
                     );

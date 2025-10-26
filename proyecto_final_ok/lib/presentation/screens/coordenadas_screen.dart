@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:geocoding/geocoding.dart'; // 👈 para convertir coordenadas a dirección
+import 'package:geocoding/geocoding.dart';
+import 'package:go_router/go_router.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+
 import 'package:proyecto_final_ok/presentation/coordenadas_provider.dart';
 import 'package:proyecto_final_ok/presentation/firestore_provider.dart';
 
@@ -52,7 +55,7 @@ class CoordenadasScreen extends ConsumerWidget {
         ].where((e) => e != null && e.isNotEmpty).join(', ');
       }
       return 'Dirección no encontrada';
-    } catch (e) {
+    } catch (_) {
       return 'Error obteniendo dirección';
     }
   }
@@ -65,6 +68,16 @@ class CoordenadasScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Mediciones en ubicación seleccionada')),
+
+      // 👉 FAB que va al mapa con foco en (lat, lon)
+      floatingActionButton: FloatingActionButton.extended(
+        icon: const Icon(Icons.map),
+        label: const Text('Ver en mapa'),
+        onPressed: () {
+          context.push('/mapa', extra: LatLng(lat, lon));
+        },
+      ),
+
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -77,9 +90,9 @@ class CoordenadasScreen extends ConsumerWidget {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    const Text(
                       "📍 Lugar:",
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),

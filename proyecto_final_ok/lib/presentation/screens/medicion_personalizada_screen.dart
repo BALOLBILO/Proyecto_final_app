@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:geocoding/geocoding.dart'; // 👈 necesario para convertir lat/lon a dirección
+import 'package:geocoding/geocoding.dart';
 import 'package:go_router/go_router.dart';
 import 'package:proyecto_final_ok/presentation/coordenadas_provider.dart';
 import 'package:proyecto_final_ok/presentation/firestore_provider.dart';
@@ -80,7 +80,7 @@ class MedicionPersonalizadaScreen extends ConsumerWidget {
         ].where((e) => e != null && e.isNotEmpty).join(', ');
       }
       return 'Dirección no encontrada';
-    } catch (e) {
+    } catch (_) {
       return 'Error obteniendo dirección';
     }
   }
@@ -94,13 +94,35 @@ class MedicionPersonalizadaScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Medición personalizada')),
-      floatingActionButton: FloatingActionButton.extended(
-        icon: const Icon(Icons.show_chart),
-        label: const Text('Grafico'),
-        onPressed: () {
-          context.push('/grafico');
-        },
+
+      // ⬇️ Dos FABs: Top 20 y Gráfico
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FloatingActionButton.extended(
+            heroTag: 'fabTop',
+            backgroundColor: Colors.deepPurple,
+            icon: const Icon(Icons.star),
+            label: const Text('Top 20'),
+            onPressed: () {
+              // Navega a la pantalla que lista el Top 20 por gas
+              context.push(
+                '/coordenada',
+              ); // ajustá si tu ruta tiene otro nombre
+            },
+          ),
+          const SizedBox(height: 12),
+          FloatingActionButton.extended(
+            heroTag: 'fabGrafico',
+            icon: const Icon(Icons.show_chart),
+            label: const Text('Gráfico'),
+            onPressed: () {
+              context.push('/grafico');
+            },
+          ),
+        ],
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
 
       body: Padding(
         padding: const EdgeInsets.all(16.0),

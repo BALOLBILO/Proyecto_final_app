@@ -20,7 +20,5 @@ final topMedicionesPorGasProvider = FutureProvider.autoDispose<List<Medicion>>((
           .limit(20)
           .get();
 
-  return snapshot.docs
-      .map((doc) => Medicion.fromMap(doc.data() as Map<String, dynamic>))
-      .toList();
+  return snapshot.docs.map((doc) => Medicion.fromMap(doc.data())).toList();
 });

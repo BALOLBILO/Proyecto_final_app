@@ -1,49 +1,108 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:http/http.dart' as http;
 
 class MapaScreen extends StatefulWidget {
-  const MapaScreen({Key? key}) : super(key: key);
+  final LatLng? focoInicial; // opcional: centra acá con zoom alto
+  const MapaScreen({super.key, this.focoInicial});
 
   @override
   State<MapaScreen> createState() => _MapaScreenState();
 }
 
 class _MapaScreenState extends State<MapaScreen> {
+  final Completer<GoogleMapController> _ctrlCompleter = Completer();
   GoogleMapController? mapController;
+
   LatLng? ubicacionActual;
   Set<Marker> marcadores = {};
   bool cargando = true;
 
+  BitmapDescriptor? _greyIcon;
+  bool _didFocusOnce = false;
+
+  static const _ambitosBA = <String>[
+    'Ciudad Autónoma de Buenos Aires', // CABA
+    'Buenos Aires', // Provincia de Buenos Aires
+  ];
+
   @override
   void initState() {
     super.initState();
-    obtenerUbicacion().then((_) => cargarMediciones());
+    _makeGreyPin(size: 96).then((icon) {
+      if (mounted) setState(() => _greyIcon = icon);
+    });
+    if (widget.focoInicial == null) obtenerUbicacion();
+    cargarMediciones();
   }
 
+  @override
+  void dispose() {
+    mapController?.dispose();
+    super.dispose();
+  }
+
+  // ===== Icono gris custom =====
+  Future<BitmapDescriptor> _makeGreyPin({int size = 96}) async {
+    final rec = ui.PictureRecorder();
+    final canvas = ui.Canvas(rec);
+    final fill = ui.Paint()..color = const ui.Color(0xFF9E9E9E); // gris 500
+    final stroke =
+        ui.Paint()
+          ..style = ui.PaintingStyle.stroke
+          ..strokeWidth = size * 0.06
+          ..color = const ui.Color(0xFF616161); // gris 700
+
+    final r = size * 0.35;
+    final c = ui.Offset(size / 2, size / 2 - size * 0.1);
+
+    canvas.drawCircle(c, r, fill);
+    canvas.drawCircle(c, r, stroke);
+
+    final path =
+        ui.Path()
+          ..moveTo(size / 2, size.toDouble() - size * 0.1)
+          ..lineTo(c.dx - r * 0.5, c.dy + r * 0.4)
+          ..lineTo(c.dx + r * 0.5, c.dy + r * 0.4)
+          ..close();
+    canvas.drawPath(path, fill);
+    canvas.drawPath(path, stroke);
+
+    final img = await rec.endRecording().toImage(size, size);
+    final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
+    return BitmapDescriptor.fromBytes(Uint8List.view(bytes!.buffer));
+  }
+
+  // ===== Ubicación actual =====
   Future<void> obtenerUbicacion() async {
-    bool servicioHabilitado = await Geolocator.isLocationServiceEnabled();
+    final servicioHabilitado = await Geolocator.isLocationServiceEnabled();
     if (!servicioHabilitado) {
       await Geolocator.openLocationSettings();
       return;
     }
-    LocationPermission permiso = await Geolocator.checkPermission();
+    var permiso = await Geolocator.checkPermission();
     if (permiso == LocationPermission.denied) {
       permiso = await Geolocator.requestPermission();
       if (permiso == LocationPermission.denied) return;
     }
     if (permiso == LocationPermission.deniedForever) return;
 
-    final posicion = await Geolocator.getCurrentPosition(
+    final pos = await Geolocator.getCurrentPosition(
       desiredAccuracy: LocationAccuracy.high,
     );
-    setState(() {
-      ubicacionActual = LatLng(posicion.latitude, posicion.longitude);
-    });
+    if (!mounted) return;
+    setState(() => ubicacionActual = LatLng(pos.latitude, pos.longitude));
   }
 
+  // ===== Clasificación (detalle) =====
   String nivelDeGas(String gas, double valor) {
     switch (gas) {
       case 'pm25':
@@ -65,10 +124,10 @@ class _MapaScreenState extends State<MapaScreen> {
     }
   }
 
+  // ===== Cargar mediciones (última por coord) =====
   Future<void> cargarMediciones() async {
     setState(() => cargando = true);
 
-    // ⚠️ Traé sólo lo reciente / limitado (ajustá el número)
     final snapshot =
         await FirebaseFirestore.instance
             .collection('mediciones')
@@ -76,23 +135,32 @@ class _MapaScreenState extends State<MapaScreen> {
             .limit(500)
             .get();
 
-    // Agrupa por coordenada redondeada para quedarte con la última en cada punto
     final Map<String, Map<String, dynamic>> ultimas = {};
     for (var doc in snapshot.docs) {
       final data = doc.data();
+
       final lat = (data['latitud'] as num?)?.toDouble();
       final lon = (data['longitud'] as num?)?.toDouble();
-      final ts = (data['timestamp'] as num?)?.toInt();
+
+      // timestamp robusto: soporta Timestamp o num
+      final tsField = data['timestamp'];
+      int? ts;
+      if (tsField is Timestamp) {
+        ts = tsField.millisecondsSinceEpoch;
+      } else if (tsField is num) {
+        // si vino en segundos → pasamos a ms
+        ts = tsField > 2000000000 ? tsField.toInt() : (tsField * 1000).toInt();
+      }
 
       if (lat == null || lon == null || ts == null) continue;
 
       final key = '${lat.toStringAsFixed(4)},${lon.toStringAsFixed(4)}';
-      if (!ultimas.containsKey(key) || ts > (ultimas[key]!['timestamp'] ?? 0)) {
+      if (!ultimas.containsKey(key) || ts > (ultimas[key]!['__ts'] ?? 0)) {
         ultimas[key] = {
           ...data,
           'latitud': lat,
           'longitud': lon,
-          'timestamp': ts,
+          '__ts': ts, // auxiliar interno para dedup
         };
       }
     }
@@ -116,9 +184,9 @@ class _MapaScreenState extends State<MapaScreen> {
         Marker(
           markerId: MarkerId(e.key),
           position: LatLng(lat, lon),
+          icon: _greyIcon ?? BitmapDescriptor.defaultMarker, // gris
           infoWindow: const InfoWindow(title: 'Tocar para ver detalles'),
           onTap: () async {
-            // 🔁 Geocoding bajo demanda (rápido para el usuario y sin bloquear el render)
             String direccion = 'Ubicación desconocida';
             try {
               final placemarks = await placemarkFromCoordinates(lat, lon);
@@ -147,11 +215,11 @@ class _MapaScreenState extends State<MapaScreen> {
                 Widget fila(
                   String nombre,
                   String unidad,
-                  double valor,
+                  double val,
                   String gasKey,
                 ) {
-                  final nivel = nivelDeGas(gasKey, valor);
-                  Color color = switch (nivel) {
+                  final nivel = nivelDeGas(gasKey, val);
+                  final color = switch (nivel) {
                     'Bajo' => Colors.green,
                     'Medio' => Colors.orange,
                     'Alto' => Colors.red,
@@ -164,7 +232,7 @@ class _MapaScreenState extends State<MapaScreen> {
                       children: [
                         Text('$nombre:', style: label),
                         Text(
-                          '${valor.toStringAsFixed(1)} $unidad   ($nivel)',
+                          '${val.toStringAsFixed(1)} $unidad   ($nivel)',
                           style: value.copyWith(color: color),
                         ),
                       ],
@@ -216,34 +284,210 @@ class _MapaScreenState extends State<MapaScreen> {
       );
     }
 
+    if (!mounted) return;
     setState(() {
       marcadores = nuevos;
       cargando = false;
     });
+
+    // Reintento de foco a zoom alto al terminar de cargar
+    if (widget.focoInicial != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        await _focusToMax(widget.focoInicial!);
+      });
+    }
   }
 
+  // ===== Enfoque/zoom alto (sin APIs de versión nueva) =====
+  Future<void> _focusToMax(LatLng target) async {
+    if (_didFocusOnce) return; // solo una vez
+    _didFocusOnce = true;
+    final ctrl = mapController ?? await _ctrlCompleter.future;
+
+    await ctrl.animateCamera(
+      CameraUpdate.newCameraPosition(
+        const CameraPosition(
+          // target lo seteamos abajo (no es const), así que armamos dinámicamente
+          target: LatLng(0, 0), // placeholder (no se usa)
+          zoom: 20.0, // zoom alto fijo
+        ),
+      ),
+    );
+
+    // como CameraPosition requiere const arriba, hacemos un segundo paso:
+    await ctrl.animateCamera(CameraUpdate.newLatLngZoom(target, 20.0));
+  }
+
+  // ===== Buscador (CABA/Provincia BA) =====
+  Future<void> _abrirBuscador() async {
+    final direController = TextEditingController();
+    String ambitoSel = _ambitosBA.first;
+
+    final result = await showDialog<({String dir, String state})>(
+      context: context,
+      builder:
+          (ctx) => AlertDialog(
+            title: const Text('Buscar dirección'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: direController,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    hintText: 'Ej: Díaz Vélez 4048',
+                    labelText: 'Dirección',
+                  ),
+                  onSubmitted: (_) {
+                    Navigator.of(
+                      ctx,
+                    ).pop((dir: direController.text.trim(), state: ambitoSel));
+                  },
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'Ámbito'),
+                  items:
+                      _ambitosBA
+                          .map(
+                            (p) => DropdownMenuItem(value: p, child: Text(p)),
+                          )
+                          .toList(),
+                  value: ambitoSel,
+                  onChanged: (v) => ambitoSel = v ?? _ambitosBA.first,
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                onPressed:
+                    () => Navigator.of(
+                      ctx,
+                    ).pop((dir: direController.text.trim(), state: ambitoSel)),
+                child: const Text('Buscar'),
+              ),
+            ],
+          ),
+    );
+
+    if (result == null || result.dir.isEmpty) return;
+    await _buscarYEnfocar(dir: result.dir, state: result.state);
+  }
+
+  Future<void> _buscarYEnfocar({
+    required String dir,
+    required String state,
+  }) async {
+    final uri = Uri.https('nominatim.openstreetmap.org', '/search', {
+      'street': dir,
+      'state': state,
+      'country': 'Argentina',
+      'format': 'jsonv2',
+      'addressdetails': '1',
+      'limit': '1',
+    });
+
+    try {
+      final resp = await http
+          .get(
+            uri,
+            headers: {
+              'User-Agent': 'ProyectoFinalFlutter/1.0 (tu-email@dominio.com)',
+            },
+          )
+          .timeout(const Duration(seconds: 8));
+
+      if (resp.statusCode != 200) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Búsqueda falló (HTTP ${resp.statusCode})')),
+        );
+        return;
+      }
+
+      final List data = jsonDecode(resp.body);
+      if (data.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se encontró esa dirección en el ámbito elegido'),
+          ),
+        );
+        return;
+      }
+
+      final lat = double.tryParse(data.first['lat'] ?? '');
+      final lon = double.tryParse(data.first['lon'] ?? '');
+      if (lat == null || lon == null) return;
+
+      final ctrl = mapController ?? await _ctrlCompleter.future;
+      await ctrl.animateCamera(
+        CameraUpdate.newLatLngZoom(LatLng(lat, lon), 20.0), // zoom alto
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Error de red al buscar')));
+    }
+  }
+
+  // ===== UI =====
   @override
   Widget build(BuildContext context) {
+    final target =
+        widget.focoInicial ??
+        ubicacionActual ??
+        const LatLng(-34.6037, -58.3816);
+
     return Scaffold(
-      appBar: AppBar(title: const Text("Mapa de mediciones")),
+      appBar: AppBar(
+        title: const Text("Mapa de mediciones"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: _abrirBuscador,
+            tooltip: 'Buscar dirección',
+          ),
+        ],
+      ),
       body:
-          ubicacionActual == null || cargando
+          cargando
               ? const Center(child: CircularProgressIndicator())
               : GoogleMap(
                 initialCameraPosition: CameraPosition(
-                  target: ubicacionActual!,
-                  zoom: 13,
+                  target: target,
+                  zoom:
+                      widget.focoInicial != null
+                          ? 17
+                          : 13, // luego forzamos 20.0
                 ),
                 myLocationEnabled: true,
                 myLocationButtonEnabled: true,
+                zoomControlsEnabled: true,
+                zoomGesturesEnabled: true,
                 markers: marcadores,
-                onMapCreated: (controller) {
+                onMapCreated: (controller) async {
                   mapController = controller;
+                  if (!_ctrlCompleter.isCompleted)
+                    _ctrlCompleter.complete(controller);
+
+                  if (widget.focoInicial != null) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) async {
+                      await Future.delayed(const Duration(milliseconds: 150));
+                      await _focusToMax(widget.focoInicial!);
+                    });
+                  }
                 },
               ),
       floatingActionButton: FloatingActionButton(
-        child: const Icon(Icons.refresh),
         onPressed: cargarMediciones,
+        child: const Icon(Icons.refresh),
       ),
     );
   }

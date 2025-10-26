@@ -18,7 +18,7 @@ final ultimas50MedicionesStreamProvider =
                 snap.docs.map((d) {
                   final data = d.data();
                   print("🕒 ${data['timestamp']}"); // para debug
-                  return Medicion.fromMap(data as Map<String, dynamic>);
+                  return Medicion.fromMap(data);
                 }).toList(),
           );
     });
