@@ -129,6 +129,20 @@ class MedicionPersonalizadaScreen extends ConsumerWidget {
               context.push('/grafico');
             },
           ),
+          const SizedBox(height: 12),
+
+          FloatingActionButton.extended(
+            heroTag: 'fabMapaEspecifico',
+            backgroundColor: Colors.green,
+            icon: const Icon(Icons.star),
+            label: const Text('Ver mapa del gas'),
+            onPressed: () {
+              // Navega a la pantalla que lista el Top 20 por gas
+              context.push(
+                '/mapaEspecifico',
+              ); // ajustá si tu ruta tiene otro nombre
+            },
+          ),
         ],
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
