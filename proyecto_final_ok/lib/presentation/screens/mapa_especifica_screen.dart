@@ -4,9 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
-import 'package:go_router/go_router.dart'; // 👈 para context.go('/inicio')
+import 'package:go_router/go_router.dart';
+import 'package:geocoding/geocoding.dart';
 
 import 'package:proyecto_final_ok/presentation/mediciones_provider.dart';
+import 'package:proyecto_final_ok/presentation/coordenadas_provider.dart';
 
 class MapaEspecificoScreen extends ConsumerStatefulWidget {
   const MapaEspecificoScreen({super.key});
@@ -22,8 +24,8 @@ class _MapaEspecificoScreenState extends ConsumerState<MapaEspecificoScreen> {
   bool cargando = true;
 
   static const _ambitosBA = <String>[
-    'Ciudad Autónoma de Buenos Aires', // CABA
-    'Buenos Aires', // Provincia de Buenos Aires
+    'Ciudad Autónoma de Buenos Aires',
+    'Buenos Aires',
   ];
 
   @override
@@ -38,7 +40,6 @@ class _MapaEspecificoScreenState extends ConsumerState<MapaEspecificoScreen> {
     super.dispose();
   }
 
-  // Colorea según gas y valor
   Color _colorFor(String gas, double v) {
     switch (gas) {
       case 'pm25':
@@ -52,17 +53,18 @@ class _MapaEspecificoScreenState extends ConsumerState<MapaEspecificoScreen> {
       case 'co':
         return v < 5 ? Colors.green : (v < 10 ? Colors.orange : Colors.red);
       case 'co2':
-        return v < 800 ? Colors.green : (v < 1500 ? Colors.orange : Colors.red);
+        return v < 600 ? Colors.green : (v < 1000 ? Colors.orange : Colors.red);
+      case 'no2':
+        return v < 50 ? Colors.green : (v < 100 ? Colors.orange : Colors.red);
       default:
         return Colors.blueGrey;
     }
   }
 
-  /// Carga mediciones y deja **un solo marcador por punto** (el más nuevo)
   Future<void> cargarDatos() async {
     setState(() => cargando = true);
 
-    final gas = ref.read(gasSeleccionado); // 'co2', 'pm25', etc.
+    final gas = ref.read(gasSeleccionado);
 
     final snapshot =
         await FirebaseFirestore.instance
@@ -71,14 +73,12 @@ class _MapaEspecificoScreenState extends ConsumerState<MapaEspecificoScreen> {
             .limit(1000)
             .get();
 
-    // Agrupar por coord redondeada y quedarnos con el más nuevo
     final Map<String, Map<String, dynamic>> ultimas = {};
     for (final doc in snapshot.docs) {
       final data = doc.data();
       final lat = (data['latitud'] as num?)?.toDouble();
       final lon = (data['longitud'] as num?)?.toDouble();
 
-      // timestamp robusto (soporta Timestamp y num)
       final tsField = data['timestamp'];
       int? ts;
       if (tsField is Timestamp) {
@@ -96,7 +96,6 @@ class _MapaEspecificoScreenState extends ConsumerState<MapaEspecificoScreen> {
       }
     }
 
-    // Crear marcadores (uno por punto) con color según el gas elegido
     final nuevos = <Marker>{};
     ultimas.forEach((key, data) {
       final lat = data['latitud'] as double;
@@ -113,11 +112,133 @@ class _MapaEspecificoScreenState extends ConsumerState<MapaEspecificoScreen> {
           icon: BitmapDescriptor.defaultMarkerWithHue(
             HSLColor.fromColor(color).hue,
           ),
-          infoWindow: InfoWindow(
-            title:
-                '${ref.read(gasSeleccionado).toUpperCase()}: ${valor.toStringAsFixed(1)}',
-            snippet: '(${lat.toStringAsFixed(4)}, ${lon.toStringAsFixed(4)})',
-          ),
+          onTap: () async {
+            final gas = ref.read(gasSeleccionado);
+            String direccion = 'Ubicación desconocida';
+            try {
+              final placemarks = await placemarkFromCoordinates(lat, lon);
+              if (placemarks.isNotEmpty) {
+                final p = placemarks.first;
+                direccion = [
+                  p.street,
+                  p.locality,
+                  p.subAdministrativeArea,
+                  p.administrativeArea,
+                  p.country,
+                ].where((e) => e != null && e.isNotEmpty).join(', ');
+              }
+            } catch (_) {}
+
+            if (!mounted) return;
+
+            showModalBottomSheet(
+              context: context,
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+              ),
+              builder: (context) {
+                final nivel = () {
+                  switch (gas) {
+                    case 'pm25':
+                      return valor < 15
+                          ? 'Bajo'
+                          : (valor < 35 ? 'Mediano' : 'Alto');
+                    case 'pm10':
+                      return valor < 30
+                          ? 'Bajo'
+                          : (valor < 50 ? 'Mediano' : 'Alto');
+                    case 'tvoc':
+                      return valor < 150
+                          ? 'Bajo'
+                          : (valor < 300 ? 'Mediano' : 'Alto');
+                    case 'nh3':
+                      return valor < 20
+                          ? 'Bajo'
+                          : (valor < 40 ? 'Mediano' : 'Alto');
+                    case 'co':
+                      return valor < 5
+                          ? 'Bajo'
+                          : (valor < 10 ? 'Mediano' : 'Alto');
+                    case 'co2':
+                      return valor < 600
+                          ? 'Bajo'
+                          : (valor < 1000 ? 'Mediano' : 'Alto');
+                    case 'no2':
+                      return valor < 50
+                          ? 'Bajo'
+                          : (valor < 100 ? 'Mediano' : 'Alto');
+                    default:
+                      return '-';
+                  }
+                }();
+
+                final color = () {
+                  switch (nivel) {
+                    case 'Bajo':
+                      return Colors.green;
+                    case 'Mediano':
+                      return Colors.orange;
+                    case 'Alto':
+                      return Colors.red;
+                    default:
+                      return Colors.grey;
+                  }
+                }();
+
+                return Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          margin: const EdgeInsets.only(bottom: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[400],
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ),
+                      Text(
+                        '📍 Ubicación: (${lat.toStringAsFixed(4)}, ${lon.toStringAsFixed(4)})',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text('🏙️ Lugar: $direccion'),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${gas.toUpperCase()}: ${valor.toStringAsFixed(2)}',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: color,
+                        ),
+                      ),
+                      Text('Nivel: $nivel'),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.analytics_outlined),
+                          label: const Text('Ver mediciones personalizadas'),
+                          onPressed: () {
+                            // ✅ guardamos la coordenada seleccionada
+                            ref.read(latitud.notifier).state = lat;
+                            ref.read(longitud.notifier).state = lon;
+
+                            Navigator.of(context).pop(); // cerrar sheet
+                            context.push('/medicionPersonalizada');
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
         ),
       );
     });
@@ -129,7 +250,6 @@ class _MapaEspecificoScreenState extends ConsumerState<MapaEspecificoScreen> {
     });
   }
 
-  // ===== Buscador (CABA/Provincia BA) =====
   Future<void> _abrirBuscador() async {
     final direController = TextEditingController();
     String ambitoSel = _ambitosBA.first;
@@ -263,7 +383,7 @@ class _MapaEspecificoScreenState extends ConsumerState<MapaEspecificoScreen> {
           IconButton(
             tooltip: 'Inicio',
             icon: const Icon(Icons.home_rounded),
-            onPressed: () => context.go('/inicio'), // 👈 botón casa
+            onPressed: () => context.go('/inicio'),
           ),
           IconButton(
             icon: const Icon(Icons.search),
@@ -279,7 +399,7 @@ class _MapaEspecificoScreenState extends ConsumerState<MapaEspecificoScreen> {
                 children: [
                   GoogleMap(
                     initialCameraPosition: const CameraPosition(
-                      target: LatLng(-34.6037, -58.3816), // Centro Buenos Aires
+                      target: LatLng(-34.6037, -58.3816),
                       zoom: 12,
                     ),
                     markers: marcadores,

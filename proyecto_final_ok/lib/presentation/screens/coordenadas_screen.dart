@@ -33,8 +33,8 @@ class CoordenadasScreen extends ConsumerWidget {
         if (valor < 10) return 'Mediano';
         return 'Alto';
       case 'co2':
-        if (valor < 800) return 'Bajo';
-        if (valor < 1500) return 'Mediano';
+        if (valor < 600) return 'Bajo';
+        if (valor < 1000) return 'Mediano';
         return 'Alto';
       default:
         return '';

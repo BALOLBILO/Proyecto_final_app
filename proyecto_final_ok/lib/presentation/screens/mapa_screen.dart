@@ -119,7 +119,7 @@ class _MapaScreenState extends State<MapaScreen> {
       case 'co':
         return valor < 5 ? 'Bajo' : (valor < 10 ? 'Medio' : 'Alto');
       case 'co2':
-        return valor < 800 ? 'Bajo' : (valor < 1500 ? 'Medio' : 'Alto');
+        return valor < 600 ? 'Bajo' : (valor < 1000 ? 'Medio' : 'Alto');
       case 'no2':
         return valor < 50 ? 'Bajo' : (valor < 100 ? 'Medio' : 'Alto');
       default:
