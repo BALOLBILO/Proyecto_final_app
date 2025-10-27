@@ -93,7 +93,16 @@ class MedicionPersonalizadaScreen extends ConsumerWidget {
     final gas = ref.watch(gasSeleccionado); // ej: 'pm25', 'co2', etc.
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Medición personalizada')),
+      appBar: AppBar(
+        title: const Text('Medición personalizada'),
+        actions: [
+          IconButton(
+            tooltip: 'Inicio',
+            icon: const Icon(Icons.home_rounded),
+            onPressed: () => context.go('/inicio'),
+          ),
+        ],
+      ),
 
       // ⬇️ Dos FABs: Top 20 y Gráfico
       floatingActionButton: Column(

@@ -15,7 +15,16 @@ class MedicionesEspecificasScreen extends ConsumerWidget {
     final medicionesAsync = ref.watch(topMedicionesPorGasProvider);
 
     return Scaffold(
-      appBar: AppBar(title: Text('Top 20 de ${gas.toUpperCase()}')),
+      appBar: AppBar(
+        title: Text('Top 20 de ${gas.toUpperCase()}'),
+        actions: [
+          IconButton(
+            tooltip: 'Inicio',
+            icon: const Icon(Icons.home_rounded),
+            onPressed: () => context.go('/inicio'),
+          ),
+        ],
+      ),
       body: Column(
         children: [
           const SizedBox(height: 16),

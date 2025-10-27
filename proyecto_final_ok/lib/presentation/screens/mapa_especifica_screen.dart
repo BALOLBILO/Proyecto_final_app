@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
+import 'package:go_router/go_router.dart'; // 👈 para context.go('/inicio')
 
 import 'package:proyecto_final_ok/presentation/mediciones_provider.dart';
 
@@ -100,19 +101,21 @@ class _MapaEspecificoScreenState extends ConsumerState<MapaEspecificoScreen> {
     ultimas.forEach((key, data) {
       final lat = data['latitud'] as double;
       final lon = data['longitud'] as double;
-      final valor = (data[gas] as num?)?.toDouble() ?? 0.0;
+      final valor =
+          (data[ref.read(gasSeleccionado)] as num?)?.toDouble() ?? 0.0;
 
-      final color = _colorFor(gas, valor);
+      final color = _colorFor(ref.read(gasSeleccionado), valor);
 
       nuevos.add(
         Marker(
-          markerId: MarkerId(key), // un marcador por coord redondeada
+          markerId: MarkerId(key),
           position: LatLng(lat, lon),
           icon: BitmapDescriptor.defaultMarkerWithHue(
             HSLColor.fromColor(color).hue,
           ),
           infoWindow: InfoWindow(
-            title: '${gas.toUpperCase()}: ${valor.toStringAsFixed(1)}',
+            title:
+                '${ref.read(gasSeleccionado).toUpperCase()}: ${valor.toStringAsFixed(1)}',
             snippet: '(${lat.toStringAsFixed(4)}, ${lon.toStringAsFixed(4)})',
           ),
         ),
@@ -257,6 +260,11 @@ class _MapaEspecificoScreenState extends ConsumerState<MapaEspecificoScreen> {
       appBar: AppBar(
         title: Text("Mapa de ${gas.toUpperCase()}"),
         actions: [
+          IconButton(
+            tooltip: 'Inicio',
+            icon: const Icon(Icons.home_rounded),
+            onPressed: () => context.go('/inicio'), // 👈 botón casa
+          ),
           IconButton(
             icon: const Icon(Icons.search),
             onPressed: _abrirBuscador,

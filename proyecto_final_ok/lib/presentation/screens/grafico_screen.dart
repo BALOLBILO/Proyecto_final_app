@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:proyecto_final_ok/presentation/chart_provider.dart';
 import 'package:proyecto_final_ok/presentation/mediciones_provider.dart';
@@ -15,7 +16,16 @@ class GraficoGasScreen extends ConsumerWidget {
     final spotsAsync = ref.watch(serieGraficoProvider);
 
     return Scaffold(
-      appBar: AppBar(title: Text('Gráfico ${gas.toUpperCase()} (últimos 20)')),
+      appBar: AppBar(
+        title: Text('Gráfico ${gas.toUpperCase()} (últimos 20)'),
+        actions: [
+          IconButton(
+            tooltip: 'Inicio',
+            icon: const Icon(Icons.home_rounded),
+            onPressed: () => context.go('/inicio'),
+          ),
+        ],
+      ),
       body: spotsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),

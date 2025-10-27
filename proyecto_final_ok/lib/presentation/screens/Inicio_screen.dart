@@ -64,6 +64,8 @@ class InicioScreen extends ConsumerWidget {
                 style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
               ),
               const SizedBox(height: 25),
+
+              // Lista de opciones
               Expanded(
                 child: ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 18),
@@ -71,7 +73,6 @@ class InicioScreen extends ConsumerWidget {
                   itemBuilder: (context, index) {
                     final item = opciones[index];
                     return GestureDetector(
-                      onTapDown: (_) => {},
                       onTap: () {
                         if (item['titulo'] == 'Lugar') {
                           ref.read(lugarPantalla.notifier).state = 1;
@@ -126,7 +127,36 @@ class InicioScreen extends ConsumerWidget {
                   },
                 ),
               ),
-              const SizedBox(height: 10),
+
+              // 👇 Imagen "del colectivo" debajo de la lista (abajo de Datos recientes)
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 18.0),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x33000000),
+                        blurRadius: 8,
+                        offset: Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    child: Image.asset(
+                      'assets/icons/Eco_Ruta.png',
+                      height: 120, // ajustá si querés
+                      fit: BoxFit.contain,
+                      semanticLabel: 'Logo EcoRuta',
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 12),
               Padding(
                 padding: const EdgeInsets.only(bottom: 14),
                 child: Text(

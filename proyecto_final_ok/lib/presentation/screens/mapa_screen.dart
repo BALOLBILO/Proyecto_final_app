@@ -9,6 +9,9 @@ import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:http/http.dart' as http;
+import 'package:go_router/go_router.dart'; // 👈 para ir a /inicio
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:proyecto_final_ok/presentation/coordenadas_provider.dart';
 
 class MapaScreen extends StatefulWidget {
   final LatLng? focoInicial; // opcional: centra acá con zoom alto
@@ -209,73 +212,99 @@ class _MapaScreenState extends State<MapaScreen> {
                 borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
               ),
               builder: (context) {
-                TextStyle label = const TextStyle(fontWeight: FontWeight.bold);
-                TextStyle value = const TextStyle(fontSize: 15);
+                return Consumer(
+                  builder: (context, ref, _) {
+                    TextStyle label = const TextStyle(
+                      fontWeight: FontWeight.bold,
+                    );
+                    TextStyle value = const TextStyle(fontSize: 15);
 
-                Widget fila(
-                  String nombre,
-                  String unidad,
-                  double val,
-                  String gasKey,
-                ) {
-                  final nivel = nivelDeGas(gasKey, val);
-                  final color = switch (nivel) {
-                    'Bajo' => Colors.green,
-                    'Medio' => Colors.orange,
-                    'Alto' => Colors.red,
-                    _ => Colors.grey,
-                  };
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('$nombre:', style: label),
-                        Text(
-                          '${val.toStringAsFixed(1)} $unidad   ($nivel)',
-                          style: value.copyWith(color: color),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                return Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Center(
-                          child: Container(
-                            width: 40,
-                            height: 4,
-                            margin: const EdgeInsets.only(bottom: 12),
-                            decoration: BoxDecoration(
-                              color: Colors.grey[400],
-                              borderRadius: BorderRadius.circular(4),
+                    Widget fila(
+                      String nombre,
+                      String unidad,
+                      double val,
+                      String gasKey,
+                    ) {
+                      final nivel = nivelDeGas(gasKey, val);
+                      final color = switch (nivel) {
+                        'Bajo' => Colors.green,
+                        'Medio' => Colors.orange,
+                        'Alto' => Colors.red,
+                        _ => Colors.grey,
+                      };
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('$nombre:', style: label),
+                            Text(
+                              '${val.toStringAsFixed(1)} $unidad   ($nivel)',
+                              style: value.copyWith(color: color),
                             ),
-                          ),
+                          ],
                         ),
-                        Text(
-                          '📍 Ubicación: (${lat.toStringAsFixed(4)}, ${lon.toStringAsFixed(4)})',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                      );
+                    }
+
+                    return Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Center(
+                              child: Container(
+                                width: 40,
+                                height: 4,
+                                margin: const EdgeInsets.only(bottom: 12),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[400],
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                              ),
+                            ),
+                            Text(
+                              '📍 Ubicación: (${lat.toStringAsFixed(4)}, ${lon.toStringAsFixed(4)})',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text('🏙️ Lugar: $direccion'),
+                            const SizedBox(height: 8),
+                            Text('🕒 Fecha: $fecha'),
+                            const Divider(),
+                            fila('PM2.5', 'µg/m³', pm25, 'pm25'),
+                            fila('PM10', 'µg/m³', pm10, 'pm10'),
+                            fila('TVOC', 'ppb', tvoc, 'tvoc'),
+                            fila('CO₂', 'ppm', co2, 'co2'),
+                            fila('NO₂', 'ppb', no2, 'no2'),
+                            fila('CO', 'ppm', co, 'co'),
+                            fila('NH₃', 'ppb', nh3, 'nh3'),
+                            const SizedBox(height: 12),
+
+                            // ⬇️ Botón: setea providers y navega a /coordenada
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                icon: const Icon(Icons.location_on_rounded),
+                                label: const Text('Ver mediciones'),
+                                onPressed: () {
+                                  ref.read(latitud.notifier).state = lat;
+                                  ref.read(longitud.notifier).state = lon;
+                                  Navigator.of(
+                                    context,
+                                  ).pop(); // cerrar bottom sheet
+                                  context.push('/coordenada'); // ir a la screen
+                                },
+                              ),
+                            ),
+                          ],
                         ),
-                        Text('🏙️ Lugar: $direccion'),
-                        const SizedBox(height: 8),
-                        Text('🕒 Fecha: $fecha'),
-                        const Divider(),
-                        fila('PM2.5', 'µg/m³', pm25, 'pm25'),
-                        fila('PM10', 'µg/m³', pm10, 'pm10'),
-                        fila('TVOC', 'ppb', tvoc, 'tvoc'),
-                        fila('CO₂', 'ppm', co2, 'co2'),
-                        fila('NO₂', 'ppb', no2, 'no2'),
-                        fila('CO', 'ppm', co, 'co'),
-                        fila('NH₃', 'ppb', nh3, 'nh3'),
-                      ],
-                    ),
-                  ),
+                      ),
+                    );
+                  },
                 );
               },
             );
@@ -298,23 +327,11 @@ class _MapaScreenState extends State<MapaScreen> {
     }
   }
 
-  // ===== Enfoque/zoom alto (sin APIs de versión nueva) =====
+  // ===== Enfoque/zoom alto =====
   Future<void> _focusToMax(LatLng target) async {
     if (_didFocusOnce) return; // solo una vez
     _didFocusOnce = true;
     final ctrl = mapController ?? await _ctrlCompleter.future;
-
-    await ctrl.animateCamera(
-      CameraUpdate.newCameraPosition(
-        const CameraPosition(
-          // target lo seteamos abajo (no es const), así que armamos dinámicamente
-          target: LatLng(0, 0), // placeholder (no se usa)
-          zoom: 20.0, // zoom alto fijo
-        ),
-      ),
-    );
-
-    // como CameraPosition requiere const arriba, hacemos un segundo paso:
     await ctrl.animateCamera(CameraUpdate.newLatLngZoom(target, 20.0));
   }
 
@@ -450,6 +467,11 @@ class _MapaScreenState extends State<MapaScreen> {
         title: const Text("Mapa de mediciones"),
         actions: [
           IconButton(
+            tooltip: 'Inicio',
+            icon: const Icon(Icons.home_rounded), // 👈 botón casa
+            onPressed: () => context.go('/inicio'),
+          ),
+          IconButton(
             icon: const Icon(Icons.search),
             onPressed: _abrirBuscador,
             tooltip: 'Buscar dirección',
@@ -463,9 +485,7 @@ class _MapaScreenState extends State<MapaScreen> {
                 initialCameraPosition: CameraPosition(
                   target: target,
                   zoom:
-                      widget.focoInicial != null
-                          ? 17
-                          : 13, // luego forzamos 20.0
+                      widget.focoInicial != null ? 17 : 13, // luego forzamos 20
                 ),
                 myLocationEnabled: true,
                 myLocationButtonEnabled: true,
@@ -474,9 +494,9 @@ class _MapaScreenState extends State<MapaScreen> {
                 markers: marcadores,
                 onMapCreated: (controller) async {
                   mapController = controller;
-                  if (!_ctrlCompleter.isCompleted)
+                  if (!_ctrlCompleter.isCompleted) {
                     _ctrlCompleter.complete(controller);
-
+                  }
                   if (widget.focoInicial != null) {
                     WidgetsBinding.instance.addPostFrameCallback((_) async {
                       await Future.delayed(const Duration(milliseconds: 150));

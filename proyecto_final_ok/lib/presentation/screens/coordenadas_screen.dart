@@ -67,15 +67,44 @@ class CoordenadasScreen extends ConsumerWidget {
     final lon = ref.watch(longitud);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Mediciones en ubicación seleccionada')),
+      appBar: AppBar(
+        title: const Text('Mediciones en ubicación seleccionada'),
+        actions: [
+          IconButton(
+            tooltip: 'Inicio',
+            icon: const Icon(Icons.home_rounded),
+            onPressed: () {
+              // Usá go(...) si querés reemplazar el stack. Si preferís apilar, cambiá por push('/inicio')
+              context.go('/inicio');
+            },
+          ),
+        ],
+      ),
 
-      // 👉 FAB que va al mapa con foco en (lat, lon)
-      floatingActionButton: FloatingActionButton.extended(
-        icon: const Icon(Icons.map),
-        label: const Text('Ver en mapa'),
-        onPressed: () {
-          context.push('/mapa', extra: LatLng(lat, lon));
-        },
+      // 👉 Dos FABs apilados: Elegir gas + Ver en mapa
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FloatingActionButton.extended(
+            heroTag: 'elegir_gas',
+            icon: const Icon(Icons.tune),
+            label: const Text('Elegir gas'),
+            onPressed: () {
+              // Navega a MedicionesScreen y, tras elegir gas, irá a MedicionPersonalizada
+              context.push('/mediciones', extra: 'personalizada');
+            },
+          ),
+          const SizedBox(height: 12),
+          FloatingActionButton.extended(
+            heroTag: 'ver_mapa',
+            icon: const Icon(Icons.map),
+            label: const Text('Ver en mapa'),
+            onPressed: () {
+              // Abre el mapa centrado en estas coordenadas
+              context.push('/mapa', extra: LatLng(lat, lon));
+            },
+          ),
+        ],
       ),
 
       body: Padding(

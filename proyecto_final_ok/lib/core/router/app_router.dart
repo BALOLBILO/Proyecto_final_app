@@ -21,8 +21,12 @@ final GoRouter appRouter = GoRouter(
     GoRoute(path: '/inicio', builder: (context, state) => const InicioScreen()),
     GoRoute(
       path: '/mediciones',
-      builder: (context, state) => const MedicionesScreen(),
+      builder: (context, state) {
+        final destino = state.extra as String?;
+        return MedicionesScreen(destino: destino); // 👈 importante
+      },
     ),
+
     GoRoute(
       path: '/medicionesEspecifica',
       builder: (context, state) => const MedicionesEspecificasScreen(),

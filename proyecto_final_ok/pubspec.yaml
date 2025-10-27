@@ -17,19 +17,24 @@ dependencies:
   google_maps_flutter: ^2.7.0
   geoflutterfire2: ^2.3.15
   fl_chart: ^0.68.0
-
-  geolocator: ^11.0.0   # 👈 agregado
+  geolocator: ^11.0.0
   geocoding: ^2.1.1
-
-
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.13.1   # 👈 genera los íconos nativos
 
 flutter:
   uses-material-design: true
-  # Si vas a usar un estilo de mapa, descomentá esto y creá el archivo:
-  # assets:
-  #   - assets/map_style.json
+  assets:
+    - assets/icons/Eco_Ruta.png     # 👈 también disponible dentro de la app
+
+# 👇 configuración del generador de íconos (Android/iOS)
+flutter_launcher_icons:
+  image_path: assets/icons/Eco_Ruta.png
+  android: true
+  ios: true
+  adaptive_icon_background: "#FFFFFF"       # opcional (Android adaptive icon)
+  adaptive_icon_foreground: assets/icons/Eco_Ruta.png
