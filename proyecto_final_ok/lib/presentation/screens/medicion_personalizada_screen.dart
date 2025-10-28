@@ -132,10 +132,10 @@ class MedicionPersonalizadaScreen extends ConsumerWidget {
           const SizedBox(height: 12),
 
           FloatingActionButton.extended(
-            heroTag: 'fabMapaEspecifico',
+            heroTag: 'mapa',
             backgroundColor: Colors.green,
-            icon: const Icon(Icons.star),
-            label: const Text('Ver mapa del gas'),
+            icon: const Icon(Icons.map),
+            label: const Text('Ver mapa'),
             onPressed: () {
               // Navega a la pantalla que lista el Top 20 por gas
               context.push(
